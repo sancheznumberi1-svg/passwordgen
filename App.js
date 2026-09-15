@@ -241,7 +241,7 @@ export default function App() {
       {/* Заголовок на техно-шрифте: пока Russo One не загружен — тонкий placeholder,
       а когда готов — рисуем заголовок целиком на новом шрифте (надёжнее, чем менять шрифт на лету) */}
       {fontsLoaded ? (
-        <Text id="app-title" style={styles.title}>🔐 Генератор паролей</Text>
+        <Text id="app-title" style={styles.title}>Генератор паролей</Text>
       ) : (
         <Text style={styles.titleWait}>⟳ загрузка шрифта...</Text>
       )}
@@ -255,7 +255,7 @@ export default function App() {
         )}
       </TouchableOpacity>
 
-      <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>✓ Пароль сохранен!</Text>
+      <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>Пароль сохранен!</Text>
 
       {/* Длина */}
       <Text style={styles.section}>Длина: {length} символов</Text>
@@ -288,7 +288,7 @@ export default function App() {
       {/* Кнопки действий — по одной на всю ширину */}
       <View style={styles.buttons}>
         <TouchableOpacity style={styles.btnGenerate} onPress={generate}>
-          <Text style={styles.btnGenerateText}>⚡ Сгенерировать</Text>
+          <Text style={styles.btnGenerateText}>Сгенерировать</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.btnCopy, !password && styles.btnCopyDisabled]}
@@ -296,7 +296,7 @@ export default function App() {
           disabled={!password}
         >
           <Text style={[styles.btnCopyText, !password && styles.btnCopyTextDisabled]}>
-            📋 Копировать
+            Копировать
           </Text>
         </TouchableOpacity>
       </View>
@@ -304,7 +304,7 @@ export default function App() {
       {/* Переход к сохранённым паролям */}
       <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('saved')}>
         <Text style={styles.btnLibraryText}>
-          🗂 Сохранённые пароли ({history.length})
+          Сохранённые пароли ({history.length})
         </Text>
       </TouchableOpacity>
       </View>
@@ -330,7 +330,7 @@ export default function App() {
         <>
           <Text style={styles.historyEmpty}>Сохранённых паролей пока нет</Text>
           <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('main')}>
-            <Text style={styles.btnLibraryText}>← На главную</Text>
+            <Text style={styles.btnLibraryText}>На главную</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -374,24 +374,24 @@ export default function App() {
           <View style={styles.modalSheet}>
             {selected && (
               <>
-                <Text style={styles.modalTitle}>{selected.pinned ? '📌 Закреплён' : 'Действия'}</Text>
+                <Text style={styles.modalTitle}>{selected.pinned ? 'Закреплён' : 'Действия'}</Text>
                 {selected.pinned && (
                   <TouchableOpacity style={styles.modalOption} onPress={() => openNoteEdit(selected)}>
                     <Text style={styles.modalOptionText}>
-                      {selected.note ? '💬 Изменить заметку' : '💬 Добавить заметку'}
+                      {selected.note ? 'Изменить заметку' : 'Добавить заметку'}
                     </Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.modalOption} onPress={() => togglePin(selected)}>
                   <Text style={styles.modalOptionText}>
-                    {selected.pinned ? '📌 Открепить' : '📌 Закрепить'}
+                    {selected.pinned ? 'Открепить' : 'Закрепить'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.modalOption} onPress={() => copyFromHistory(selected)}>
-                  <Text style={styles.modalOptionText}>📋 Скопировать</Text>
+                  <Text style={styles.modalOptionText}>Скопировать</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.modalOption} onPress={() => confirmDelete(selected)}>
-                  <Text style={[styles.modalOptionText, styles.modalOptionDanger]}>🗑 Удалить</Text>
+                  <Text style={[styles.modalOptionText, styles.modalOptionDanger]}>Удалить</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.modalOption} onPress={() => setSelected(null)}>
                   <Text style={styles.modalOptionText}>Отмена</Text>
@@ -413,7 +413,7 @@ export default function App() {
           <View style={styles.confirmBox}>
             {confirmItem && (
               <>
-                <Text style={styles.confirmTitle}>🗑 Удалить пароль?</Text>
+                <Text style={styles.confirmTitle}>Удалить пароль?</Text>
                 <Text style={styles.confirmText} numberOfLines={2}>{confirmItem.text}</Text>
                 <View style={styles.confirmButtons}>
                   <TouchableOpacity
@@ -444,7 +444,7 @@ export default function App() {
       >
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
-            <Text style={styles.confirmTitle}>🗑 Удалить все пароли?</Text>
+            <Text style={styles.confirmTitle}>Удалить все пароли?</Text>
             <Text style={styles.confirmText}>
               Будут удалены все {history.length} сохранённых паролей. Это действие нельзя отменить.
             </Text>
@@ -477,14 +477,14 @@ export default function App() {
           <View style={styles.confirmBox}>
             {noteTarget && (
               <>
-                <Text style={styles.confirmTitle}>📝 Заметка</Text>
+                <Text style={styles.confirmTitle}>Заметка</Text>
                 <Text style={styles.viewNoteText}>{noteTarget.note}</Text>
                 <View style={styles.confirmButtons}>
                   <TouchableOpacity
                     style={[styles.confirmBtn, styles.confirmBtnCancel]}
                     onPress={() => { setEditTarget(noteTarget); setNoteDraft(noteTarget.note || ''); setNoteTarget(null); }}
                   >
-                    <Text style={styles.confirmBtnCancelText}>✏ Изменить</Text>
+                    <Text style={styles.confirmBtnCancelText}>Изменить</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.confirmBtn, styles.confirmBtnDelete]}
@@ -510,7 +510,7 @@ export default function App() {
           <View style={styles.confirmBox}>
             {editTarget && (
               <>
-                <Text style={styles.confirmTitle}>📝 Заметка</Text>
+                <Text style={styles.confirmTitle}>Заметка</Text>
                 <TextInput
                   style={styles.editNoteInput}
                   value={noteDraft}
@@ -625,13 +625,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
-  // Надпись «✓ Пароль сохранен!» — системный шрифт: символ ✓ в Russo One отсутствует.
+  // Надпись «Пароль сохранен!» — Russo One (символ ✓ убран, обрезки не будет).
   copied: {
     color: '#4ade80',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
     fontWeight: '600',
+    fontFamily: 'RussoOne_400Regular',
   },
   section: {
     color: '#999',
@@ -666,11 +667,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C6CF0',
     borderColor: '#7C6CF0',
   },
-  // Шрифт плиток — системный: Russo One в собранном APK обрезает текст со скобками
-  // (пример-подсказку 'abc' в «Буквы»). Системный шрифт рисует любые символы без обрезки.
+  // Единый шрифт интерфейса: плитки наборов тоже на Russo One (все символы в шрифте есть,
+  // эмодзи из текста убраны — обрезки не будет).
   chipText: {
     color: '#999',
     fontSize: 14,
+    fontFamily: 'RussoOne_400Regular',
   },
   chipTextActive: {
     color: '#fff',
@@ -704,11 +706,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: 'center',
   },
-  // Кнопка «Копировать» — системный шрифт: эмодзи 📋 + Russo One в APK дают пустую кнопку.
+  // Кнопка «Копировать» — Russo One в общем стиле (текст без эмодзи, символы все есть).
   btnCopyText: {
     color: '#60a5fa',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   btnCopyDisabled: {
     backgroundColor: '#171722',
@@ -827,6 +831,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
+    fontFamily: 'RussoOne_400Regular',
   },
   modalOption: {
     paddingVertical: 16,
@@ -837,6 +842,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+    fontFamily: 'RussoOne_400Regular',
   },
   modalOptionDanger: {
     color: '#ef4444',
@@ -861,6 +867,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
+    fontFamily: 'RussoOne_400Regular',
   },
   confirmText: {
     color: '#ccc',
@@ -886,6 +893,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: 'RussoOne_400Regular',
   },
   confirmBtnDelete: {
     backgroundColor: '#ef4444',
@@ -894,6 +902,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'RussoOne_400Regular',
   },
   // Значок «есть заметка» — просто эмодзи, как 📌 рядом с паролем
   noteBtn: {
@@ -934,5 +943,6 @@ const styles = StyleSheet.create({
     color: '#fbbf24',
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'RussoOne_400Regular',
   },
 });
