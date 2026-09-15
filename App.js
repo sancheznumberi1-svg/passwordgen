@@ -631,6 +631,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     fontWeight: '600',
+    fontFamily: 'RussoOne_400Regular',
   },
   section: {
     color: '#999',
@@ -669,7 +670,8 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 14,
     fontFamily: 'RussoOne_400Regular',
-    textTransform: 'uppercase',
+    // без textTransform: пример-подсказка 'abc' в кнопке «Буквы» остаётся прописной,
+    // а не превращается в 'ABC' (та же логика и для остальных кнопок набора)
   },
   chipTextActive: {
     color: '#fff',
