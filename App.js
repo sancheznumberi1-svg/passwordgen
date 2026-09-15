@@ -10,11 +10,14 @@ import {
   Modal,
   TextInput,
   Animated,
+  BackHandler,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFonts } from 'expo-font';
+import { RussoOne_400Regular } from '@expo-google-fonts/russo-one';
 
 // Наборы символов
 const SETS = {
@@ -48,6 +51,9 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Техно-шрифт Russo One для заголовка (пока грузится — используем обычный)
+  const [fontsLoaded] = useFonts({ RussoOne_400Regular });
+
   // История скопированных паролей
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null); // запись, для которой открыто меню «⋯»
@@ -72,6 +78,19 @@ export default function App() {
       useNativeDriver: false,
     }).start();
   }
+
+  // Системная кнопка «назад» на Android: со второго экрана — возврат на главный,
+  // с главного — обычный выход из приложения.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screen === 'saved') {
+        switchScreen('main');
+        return true; // нажатие обработано — приложение остаётся открытым
+      }
+      return false; // на главном экране — пусть приложение закрывается как обычно
+    });
+    return () => sub.remove();
+  }, [screen]);
 
   // Загрузка истории при старте
   useEffect(() => {
@@ -219,14 +238,14 @@ export default function App() {
         ]}
       >
       <View style={styles.stagePart}>
-      <Text id="app-title" style={styles.title}>🔐 Генератор паролей</Text>
+      <Text id="app-title" style={[styles.title, fontsLoaded && { fontFamily: 'RussoOne_400Regular' }]}>🔐 Генератор паролей</Text>
 
       {/* Отображение пароля */}
       <TouchableOpacity style={styles.passwordBox} onPress={copy} activeOpacity={0.8}>
         <Text style={styles.password} selectable>{password || 'Нажмите «Сгенерировать»'}</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>✓ Скопировано!</Text>
+      <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>✓ Пароль сохранен!</Text>
 
       {/* Длина */}
       <Text style={styles.section}>Длина: {length} символов</Text>
