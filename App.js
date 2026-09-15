@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     overflowWrap: 'break-word',
     wordBreak: 'break-word',
   },
-  // Подсказка в пустом поле генерации — на техно-шрифте, чтобы смотрелась как приглашение
+  // Подсказка в пустом поле генерации — на техно-шрифте, чтобы смотрелась как приглашение.
   passwordHint: {
     color: '#555',
     fontSize: 15,
@@ -625,13 +625,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
+  // Надпись «✓ Пароль сохранен!» — системный шрифт: символ ✓ в Russo One отсутствует.
   copied: {
     color: '#4ade80',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
     fontWeight: '600',
-    fontFamily: 'RussoOne_400Regular',
   },
   section: {
     color: '#999',
@@ -666,12 +666,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C6CF0',
     borderColor: '#7C6CF0',
   },
+  // Шрифт плиток — системный: Russo One в собранном APK обрезает текст со скобками
+  // (пример-подсказку 'abc' в «Буквы»). Системный шрифт рисует любые символы без обрезки.
   chipText: {
     color: '#999',
     fontSize: 14,
-    fontFamily: 'RussoOne_400Regular',
-    // без textTransform: пример-подсказка 'abc' в кнопке «Буквы» остаётся прописной,
-    // а не превращается в 'ABC' (та же логика и для остальных кнопок набора)
   },
   chipTextActive: {
     color: '#fff',
@@ -705,12 +704,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: 'center',
   },
+  // Кнопка «Копировать» — системный шрифт: эмодзи 📋 + Russo One в APK дают пустую кнопку.
   btnCopyText: {
     color: '#60a5fa',
     fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'RussoOne_400Regular',
-    textTransform: 'uppercase',
   },
   btnCopyDisabled: {
     backgroundColor: '#171722',
