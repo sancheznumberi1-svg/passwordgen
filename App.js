@@ -51,7 +51,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Техно-шрифт Russo One для заголовка (пока грузится — используем обычный)
+  // Техно-шрифт Russo One: заголовок и подписи рисуются на нём, когда шрифт готов
   const [fontsLoaded] = useFonts({ RussoOne_400Regular });
 
   // История скопированных паролей
@@ -238,11 +238,21 @@ export default function App() {
         ]}
       >
       <View style={styles.stagePart}>
-      <Text id="app-title" style={[styles.title, fontsLoaded && { fontFamily: 'RussoOne_400Regular' }]}>🔐 Генератор паролей</Text>
+      {/* Заголовок на техно-шрифте: пока Russo One не загружен — тонкий placeholder,
+      а когда готов — рисуем заголовок целиком на новом шрифте (надёжнее, чем менять шрифт на лету) */}
+      {fontsLoaded ? (
+        <Text id="app-title" style={styles.title}>🔐 Генератор паролей</Text>
+      ) : (
+        <Text style={styles.titleWait}>⟳ загрузка шрифта...</Text>
+      )}
 
       {/* Отображение пароля */}
       <TouchableOpacity style={styles.passwordBox} onPress={copy} activeOpacity={0.8}>
-        <Text style={styles.password} selectable>{password || 'Нажмите «Сгенерировать»'}</Text>
+        {password ? (
+          <Text style={styles.password} selectable>{password}</Text>
+        ) : (
+          <Text style={styles.passwordHint}>Нажмите «Сгенерировать»</Text>
+        )}
       </TouchableOpacity>
 
       <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>✓ Пароль сохранен!</Text>
@@ -563,15 +573,22 @@ const styles = StyleSheet.create({
   title: {
     color: '#ff6b6b',
     fontSize: 22,
-    fontWeight: '900',
     textAlign: 'center',
     width: '100%',
     marginBottom: 24,
-    fontFamily: 'Consolas, "Courier New", monospace',
+    fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
     textShadowColor: 'rgba(255, 100, 100, 0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
+  },
+  // Заглушка, видимая короткий миг, пока шрифт Russo One загружается
+  titleWait: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    width: '100%',
+    marginBottom: 24,
   },
   passwordBox: {
     backgroundColor: '#1e1e2b',
@@ -594,6 +611,15 @@ const styles = StyleSheet.create({
     overflowWrap: 'break-word',
     wordBreak: 'break-word',
   },
+  // Подсказка в пустом поле генерации — на техно-шрифте, чтобы смотрелась как приглашение
+  passwordHint: {
+    color: '#555',
+    fontSize: 15,
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
   hint: {
     color: '#666',
     fontSize: 12,
@@ -612,6 +638,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 24,
     marginBottom: 8,
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   slider: {
     width: '100%',
@@ -640,6 +668,8 @@ const styles = StyleSheet.create({
   chipText: {
     color: '#999',
     fontSize: 14,
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   chipTextActive: {
     color: '#fff',
@@ -662,6 +692,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   btnCopy: {
     backgroundColor: '#1a2a3a',
@@ -675,6 +707,8 @@ const styles = StyleSheet.create({
     color: '#60a5fa',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   btnCopyDisabled: {
     backgroundColor: '#171722',
@@ -696,6 +730,8 @@ const styles = StyleSheet.create({
     color: '#c4b5fd',
     fontSize: 17,
     fontWeight: '700',
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   libraryHeader: {
     flexDirection: 'row',
@@ -718,6 +754,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
+    fontFamily: 'RussoOne_400Regular',
+    textTransform: 'uppercase',
   },
   clearBtn: {
     paddingVertical: 8,

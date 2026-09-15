@@ -26,6 +26,9 @@
         "projectId": "33a89720-351b-4898-b908-b68495ee01e3"
       }
     },
-    "owner": "sanchezni"
+    "owner": "sanchezni",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
