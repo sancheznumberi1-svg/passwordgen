@@ -21,10 +21,10 @@ import { RussoOne_400Regular } from '@expo-google-fonts/russo-one';
 
 // Наборы символов
 const SETS = {
-  lower: { label: 'Буквы (abc)', chars: 'abcdefghijklmnopqrstuvwxyz' },
-  upper: { label: 'Заглавные (ABC)', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
-  digits: { label: 'Цифры (123)', chars: '0123456789' },
-  symbols: { label: 'Символы (!@#)', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
+  lower: { label: 'Буквы', chars: 'abcdefghijklmnopqrstuvwxyz' },
+  upper: { label: 'Заглавные', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+  digits: { label: 'Цифры', chars: '0123456789' },
+  symbols: { label: 'Символы', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
 };
 
 const STORAGE_KEY = 'password_history';
@@ -304,7 +304,7 @@ export default function App() {
       {/* Переход к сохранённым паролям */}
       <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('saved')}>
         <Text style={styles.btnLibraryText}>
-          Сохранённые пароли ({history.length})
+          Сохранённые ({history.length})
         </Text>
       </TouchableOpacity>
       </View>
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     borderColor: '#3a3a4a',
     borderRadius: 14,
     paddingVertical: 14,
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
     alignItems: 'center',
   },
   chipActive: {
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   // эмодзи из текста убраны — обрезки не будет).
   chipText: {
     color: '#999',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'RussoOne_400Regular',
   },
   chipTextActive: {
@@ -706,13 +706,13 @@ const styles = StyleSheet.create({
     borderColor: '#2a4a6a',
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     alignItems: 'center',
   },
   // Кнопка «Копировать» — Russo One в общем стиле (текст без эмодзи, символы все есть).
   btnCopyText: {
     color: '#60a5fa',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
@@ -730,13 +730,13 @@ const styles = StyleSheet.create({
     borderColor: '#7C6CF0',
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     alignItems: 'center',
     marginTop: 12,
   },
   btnLibraryText: {
     color: '#c4b5fd',
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
