@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     borderColor: '#3a3a4a',
     borderRadius: 14,
     paddingVertical: 14,
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
     alignItems: 'center',
   },
   chipActive: {
