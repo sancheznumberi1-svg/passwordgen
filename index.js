@@ -5,13 +5,6 @@ import App from './App';
 // Поддержка «рамки телефона» при просмотре в браузере (телефон не трогается).
 // На Android-устройстве document не существует, поэтому блок просто пропускается.
 if (typeof document !== 'undefined') {
-  // Загрузка шрифта Orbitron через FontFace API (надёжнее @import)
-  const fontUrl = 'https://fonts.gstatic.com/s/orbitron/v31/yMJRMIlzdpvBhQQL_Qq7dy0.woff2';
-  const orbitron = new FontFace('Orbitron', `url(${fontUrl})`, { weight: '700 900' });
-  orbitron.load().then(function(loaded) {
-    document.fonts.add(loaded);
-  }).catch(function() {});
-
   const style = document.createElement('style');
   style.textContent = `
     html, body { margin: 0; height: 100%; background: #0a0a12; overflow: hidden; }

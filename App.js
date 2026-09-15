@@ -27,10 +27,19 @@ const SETS = {
 const STORAGE_KEY = 'password_history';
 
 // Безопасная генерация: возвращает целое число [0, max)
+// Используем «rejection sampling»: выбрасываем случайные числа, которые могли бы
+// создать неравномерность (например, 2^32 не делится на 26 нацело, значит «остатки»
+// дали бы буквам A–F чуть больше шансов). Пока не выпало подходящее — берём новое.
 function randomInt(max) {
   const buf = new Uint32Array(1);
-  Crypto.getRandomValues(buf);
-  return buf[0] % max;
+  // Наибольшее значение, кратное max и не превышающее 2^32 — при нём деление честное.
+  const limit = Math.floor(0xffffffff / max) * max;
+  let value;
+  do {
+    Crypto.getRandomValues(buf);
+    value = buf[0];
+  } while (value >= limit);
+  return value % max;
 }
 
 export default function App() {
