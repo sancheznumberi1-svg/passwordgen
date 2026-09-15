@@ -21,10 +21,10 @@ import { RussoOne_400Regular } from '@expo-google-fonts/russo-one';
 
 // Наборы символов
 const SETS = {
-  lower: { label: 'Буквы', chars: 'abcdefghijklmnopqrstuvwxyz' },
-  upper: { label: 'Заглавные', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
-  digits: { label: 'Цифры', chars: '0123456789' },
-  symbols: { label: 'Символы', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
+  lower: { label: 'Буквы (abc)', chars: 'abcdefghijklmnopqrstuvwxyz' },
+  upper: { label: 'Заглавные (ABC)', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+  digits: { label: 'Цифры (123)', chars: '0123456789' },
+  symbols: { label: 'Символы (!@#)', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
 };
 
 const STORAGE_KEY = 'password_history';
@@ -304,7 +304,7 @@ export default function App() {
       {/* Переход к сохранённым паролям */}
       <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('saved')}>
         <Text style={styles.btnLibraryText}>
-          Сохранённые ({history.length})
+          Сохранённые пароли ({history.length})
         </Text>
       </TouchableOpacity>
       </View>
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   // эмодзи из текста убраны — обрезки не будет).
   chipText: {
     color: '#999',
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'RussoOne_400Regular',
   },
   chipTextActive: {
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   // Кнопка «Копировать» — Russo One в общем стиле (текст без эмодзи, символы все есть).
   btnCopyText: {
     color: '#60a5fa',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   },
   btnLibraryText: {
     color: '#c4b5fd',
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '700',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
