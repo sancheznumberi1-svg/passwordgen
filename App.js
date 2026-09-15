@@ -661,6 +661,7 @@ const styles = StyleSheet.create({
     borderColor: '#3a3a4a',
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   chipActive: {
@@ -671,7 +672,7 @@ const styles = StyleSheet.create({
   // эмодзи из текста убраны — обрезки не будет).
   chipText: {
     color: '#999',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'RussoOne_400Regular',
   },
   chipTextActive: {
@@ -688,6 +689,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#14b8a6',
     borderRadius: 18,
     paddingVertical: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
     elevation: 4,
   },
@@ -704,6 +706,7 @@ const styles = StyleSheet.create({
     borderColor: '#2a4a6a',
     borderRadius: 18,
     paddingVertical: 18,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   // Кнопка «Копировать» — Russo One в общем стиле (текст без эмодзи, символы все есть).
@@ -727,6 +730,7 @@ const styles = StyleSheet.create({
     borderColor: '#7C6CF0',
     borderRadius: 18,
     paddingVertical: 18,
+    paddingHorizontal: 20,
     alignItems: 'center',
     marginTop: 12,
   },
