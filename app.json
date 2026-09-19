@@ -2,21 +2,31 @@
   "expo": {
     "name": "PasswordGen",
     "slug": "PasswordGen",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14141d"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.passwordgen.app"
     },
     "android": {
-      "package": "com.sanchezni.passwordgen",
+      "package": "com.passwordgen.app",
       "adaptiveIcon": {
         "backgroundColor": "#14141d",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -28,7 +38,8 @@
     },
     "owner": "sanchezni",
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ]
   }
 }

@@ -15,27 +15,27 @@ import {
 import Slider from '@react-native-community/slider';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 import { RussoOne_400Regular } from '@expo-google-fonts/russo-one';
+import { v4 as uuidv4 } from 'uuid';
 
 // Наборы символов
 const SETS = {
-  lower: { label: 'Буквы (abc)', chars: 'abcdefghijklmnopqrstuvwxyz' },
-  upper: { label: 'Заглавные (ABC)', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
-  digits: { label: 'Цифры (123)', chars: '0123456789' },
-  symbols: { label: 'Символы (!@#)', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
+  upper: { label: 'ABC', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+  lower: { label: 'abc', chars: 'abcdefghijklmnopqrstuvwxyz' },
+  digits: { label: '123', chars: '0123456789' },
+  symbols: { label: '!@#', chars: '!@#$%^&*()_+-=[]{};:,.<>?' },
 };
 
-const STORAGE_KEY = 'password_history';
+const STORAGE_KEY = 'password_history_v1';
+const MAX_HISTORY_ITEMS = 100;
+const MAX_NOTE_LENGTH = 500;
+const CLIPBOARD_TIMEOUT = 30000; // 30 сек — автоочистка буфера
 
 // Безопасная генерация: возвращает целое число [0, max)
-// Используем «rejection sampling»: выбрасываем случайные числа, которые могли бы
-// создать неравномерность (например, 2^32 не делится на 26 нацело, значит «остатки»
-// дали бы буквам A–F чуть больше шансов). Пока не выпало подходящее — берём новое.
 function randomInt(max) {
   const buf = new Uint32Array(1);
-  // Наибольшее значение, кратное max и не превышающее 2^32 — при нём деление честное.
   const limit = Math.floor(0xffffffff / max) * max;
   let value;
   do {
@@ -49,29 +49,52 @@ export default function App() {
   const [length, setLength] = useState(12);
   const [enabled, setEnabled] = useState({ lower: true, upper: true, digits: true, symbols: true });
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(true); // показывать ли пароль
   const [copied, setCopied] = useState(false);
 
-  // Техно-шрифт Russo One: заголовок и подписи рисуются на нём, когда шрифт готов
   const [fontsLoaded] = useFonts({ RussoOne_400Regular });
+
+  // Анимация свечения заголовка — с правильной очисткой
+  const titleOpacity = useRef(new Animated.Value(1)).current;
+  const animRef = useRef(null);
+
+  useEffect(() => {
+    animRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(titleOpacity, { toValue: 0.7, duration: 1100, useNativeDriver: true }),
+        Animated.timing(titleOpacity, { toValue: 1, duration: 1100, useNativeDriver: true }),
+      ])
+    );
+    animRef.current.start();
+
+    return () => {
+      // Остановим анимацию при размонтировании
+      if (animRef.current) {
+        animRef.current.stop();
+      }
+    };
+  }, [titleOpacity]);
 
   // История скопированных паролей
   const [history, setHistory] = useState([]);
-  const [selected, setSelected] = useState(null); // запись, для которой открыто меню «⋯»
-  const [confirmItem, setConfirmItem] = useState(null); // запись, для которой открыто подтверждение удаления
-  const [noteTarget, setNoteTarget] = useState(null); // запись, для которой открыт просмотр заметки
-  const [editTarget, setEditTarget] = useState(null); // запись, для которой открыто редактирование заметки
-  const [noteDraft, setNoteDraft] = useState(''); // черновик текста заметки
+  const [selected, setSelected] = useState(null);
+  const [confirmItem, setConfirmItem] = useState(null);
+  const [noteTarget, setNoteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [noteDraft, setNoteDraft] = useState('');
 
-  // Переключение экранов: 'main' — генерация, 'saved' — список сохранённых паролей
   const [screen, setScreen] = useState('main');
-  const [clearConfirm, setClearConfirm] = useState(false); // подтверждение «Очистить всё»
+  const [clearConfirm, setClearConfirm] = useState(false);
 
-  // Плавный переход «слайд вбок»: 0 — главный экран на месте, 1 — список на месте
   const slide = useRef(new Animated.Value(0)).current;
+
+  // Ссылки на таймауты для очистки
+  const timeoutRefs = useRef({});
+  const clipboardTimeoutRef = useRef(null);
 
   function switchScreen(next) {
     if (screen === next) return;
-    setScreen(next); // запоминаем активный экран для логики
+    setScreen(next);
     Animated.timing(slide, {
       toValue: next === 'saved' ? 1 : 0,
       duration: 260,
@@ -79,37 +102,51 @@ export default function App() {
     }).start();
   }
 
-  // Системная кнопка «назад» на Android: со второго экрана — возврат на главный,
-  // с главного — обычный выход из приложения.
+  // BackHandler с правильной очисткой
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (screen === 'saved') {
         switchScreen('main');
-        return true; // нажатие обработано — приложение остаётся открытым
+        return true;
       }
-      return false; // на главном экране — пусть приложение закрывается как обычно
+      return false;
     });
     return () => sub.remove();
   }, [screen]);
 
-  // Загрузка истории при старте
+  // Загрузка истории при старте (из защищённого хранилища)
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) setHistory(JSON.parse(raw));
+        const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setHistory(parsed.slice(0, MAX_HISTORY_ITEMS));
+          }
+        }
       } catch (e) {
-        // повреждённые данные игнорируем
+        console.warn('Failed to load password history:', e.message);
+        // Если хранилище повреждено, начнём с пустого массива
+        setHistory([]);
       }
     })();
   }, []);
 
-  // Сохранение истории при каждом изменении
+  // Сохранение истории при каждом изменении (в защищённое хранилище)
   useEffect(() => {
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(history)).catch(() => {});
+    (async () => {
+      try {
+        // Ограничиваем размер: максимум MAX_HISTORY_ITEMS записей
+        const limitedHistory = history.slice(0, MAX_HISTORY_ITEMS);
+        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(limitedHistory));
+      } catch (e) {
+        console.warn('Failed to save password history:', e.message);
+      }
+    })();
   }, [history]);
 
-  // Сортировка: сначала закреплённые, затем по дате (новые выше)
+  // Сортировка: закреплённые первые, затем по дате
   function sortHistory(list) {
     return [...list].sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -122,7 +159,6 @@ export default function App() {
       .filter(([key]) => enabled[key])
       .map(([, s]) => s.chars);
 
-    // Нужно хотя бы один набор символов
     if (active.length === 0) {
       Alert.alert('Выберите набор символов', 'Включите хотя бы один тип символов');
       return;
@@ -130,48 +166,83 @@ export default function App() {
 
     const pool = active.join('');
     let result = '';
-    // Гарантируем хотя бы один символ из каждого выбранного набора
     for (const chars of active) result += chars[randomInt(chars.length)];
-    // Добираем остаток
     while (result.length < length) result += pool[randomInt(pool.length)];
-    // Перемешиваем (Fisher–Yates)
+
     const arr = result.split('');
     for (let i = arr.length - 1; i > 0; i--) {
       const j = randomInt(i + 1);
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+
     setPassword(arr.join(''));
     setCopied(false);
+    setPasswordVisible(true);
   }
 
-  // Добавить пароль в историю (без дубликатов)
+  // Добавить пароль в историю
   function addToHistory(text) {
     setHistory(prev => {
       const existing = prev.find(item => item.text === text);
       if (existing) {
-        // Тот же пароль уже есть — обновляем дату, поднимаем наверх, pinned сохраняем
         return sortHistory(
           prev.map(item => (item.text === text ? { ...item, createdAt: Date.now() } : item))
         );
       }
-      return sortHistory([{ id: Date.now(), text, pinned: false, createdAt: Date.now(), note: '' }, ...prev]);
+      // UUID вместо Date.now() — избегаем коллизий
+      return sortHistory([
+        { id: uuidv4(), text, pinned: false, createdAt: Date.now(), note: '' },
+        ...prev
+      ]).slice(0, MAX_HISTORY_ITEMS);
     });
+  }
+
+  // Очистить буфер обмена через N секунд
+  function scheduleClipboardClear() {
+    if (clipboardTimeoutRef.current) {
+      clearTimeout(clipboardTimeoutRef.current);
+    }
+    clipboardTimeoutRef.current = setTimeout(async () => {
+      try {
+        await Clipboard.setStringAsync('');
+      } catch (e) {
+        console.warn('Failed to clear clipboard:', e.message);
+      }
+      clipboardTimeoutRef.current = null;
+    }, CLIPBOARD_TIMEOUT);
   }
 
   async function copy() {
     if (!password) return;
-    await Clipboard.setStringAsync(password);
-    addToHistory(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(password);
+      addToHistory(password);
+      setCopied(true);
+      scheduleClipboardClear();
+
+      // Автоочистка UI уведомления
+      const timeoutId = setTimeout(() => setCopied(false), 2000);
+      timeoutRefs.current['copy'] = timeoutId;
+    } catch (e) {
+      console.warn('Failed to copy to clipboard:', e.message);
+      Alert.alert('Ошибка', 'Не удалось скопировать пароль в буфер обмена');
+    }
   }
 
   async function copyFromHistory(item) {
-    await Clipboard.setStringAsync(item.text);
-    addToHistory(item.text);
-    setSelected(null);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await Clipboard.setStringAsync(item.text);
+      addToHistory(item.text);
+      setSelected(null);
+      setCopied(true);
+      scheduleClipboardClear();
+
+      const timeoutId = setTimeout(() => setCopied(false), 2000);
+      timeoutRefs.current['history'] = timeoutId;
+    } catch (e) {
+      console.warn('Failed to copy from history:', e.message);
+      Alert.alert('Ошибка', 'Не удалось скопировать пароль в буфер обмена');
+    }
   }
 
   function togglePin(item) {
@@ -193,7 +264,6 @@ export default function App() {
     setConfirmItem(null);
   }
 
-  // Открыть редактирование заметки (из меню «⋯»)
   function openNoteEdit(item) {
     setSelected(null);
     setEditTarget(item);
@@ -202,8 +272,9 @@ export default function App() {
 
   function saveNote() {
     if (!editTarget) return;
+    const trimmed = noteDraft.trim().slice(0, MAX_NOTE_LENGTH);
     setHistory(prev =>
-      prev.map(i => (i.id === editTarget.id ? { ...i, note: noteDraft.trim() } : i))
+      prev.map(i => (i.id === editTarget.id ? { ...i, note: trimmed } : i))
     );
     setEditTarget(null);
     setNoteDraft('');
@@ -222,148 +293,173 @@ export default function App() {
     setEnabled(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
+  // Очистка таймаутов при размонтировании
+  useEffect(() => {
+    return () => {
+      Object.values(timeoutRefs.current).forEach(id => clearTimeout(id));
+      if (clipboardTimeoutRef.current) {
+        clearTimeout(clipboardTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
 
       <View style={styles.screen}>
-      <Animated.View
-        style={[
-          styles.stage,
-          {
-            transform: [
-              { translateX: slide.interpolate({ inputRange: [0, 1], outputRange: ['0%', '-50%'] }) },
-            ],
-          },
-        ]}
-      >
-      <View style={styles.stagePart}>
-      {/* Заголовок на техно-шрифте: пока Russo One не загружен — тонкий placeholder,
-      а когда готов — рисуем заголовок целиком на новом шрифте (надёжнее, чем менять шрифт на лету) */}
-      {fontsLoaded ? (
-        <Text id="app-title" style={styles.title}>Генератор паролей</Text>
-      ) : (
-        <Text style={styles.titleWait}>⟳ загрузка шрифта...</Text>
-      )}
-
-      {/* Отображение пароля */}
-      <TouchableOpacity style={styles.passwordBox} onPress={copy} activeOpacity={0.8}>
-        {password ? (
-          <Text style={styles.password} selectable>{password}</Text>
-        ) : (
-          <Text style={styles.passwordHint}>Нажмите «Сгенерировать»</Text>
-        )}
-      </TouchableOpacity>
-
-      <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>Пароль сохранен!</Text>
-
-      {/* Длина */}
-      <Text style={styles.section}>Длина: {length} символов</Text>
-      <Slider
-        style={styles.slider}
-        minimumValue={4}
-        maximumValue={64}
-        step={1}
-        value={length}
-        onValueChange={setLength}
-        minimumTrackTintColor="#7C6CF0"
-        maximumTrackTintColor="#3a3a4a"
-        thumbTintColor="#7C6CF0"
-      />
-
-      {/* Наборы символов — 2×2 сетка */}
-      <Text style={styles.section}>Сложность</Text>
-      <View style={styles.toggles}>
-        {Object.entries(SETS).map(([key, s]) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.chip, enabled[key] && styles.chipActive]}
-            onPress={() => toggle(key)}
-          >
-            <Text style={[styles.chipText, enabled[key] && styles.chipTextActive]}>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Кнопки действий — по одной на всю ширину */}
-      <View style={styles.buttons}>
-        <TouchableOpacity style={styles.btnGenerate} onPress={generate}>
-          <Text style={styles.btnGenerateText}>Сгенерировать</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btnCopy, !password && styles.btnCopyDisabled]}
-          onPress={copy}
-          disabled={!password}
+        <Animated.View
+          style={[
+            styles.stage,
+            {
+              transform: [
+                { translateX: slide.interpolate({ inputRange: [0, 1], outputRange: ['0%', '-50%'] }) },
+              ],
+            },
+          ]}
         >
-          <Text style={[styles.btnCopyText, !password && styles.btnCopyTextDisabled]}>
-            Копировать
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.stagePart}>
+            {fontsLoaded ? (
+              <Animated.Text id="app-title" style={[styles.title, { opacity: titleOpacity }]}>Генератор паролей</Animated.Text>
+            ) : (
+              <Text style={styles.titleWait}>⟳ загрузка шрифта...</Text>
+            )}
 
-      {/* Переход к сохранённым паролям */}
-      <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('saved')}>
-        <Text style={styles.btnLibraryText}>
-          Сохранённые пароли ({history.length})
-        </Text>
-      </TouchableOpacity>
-      </View>
-      <View style={styles.stagePart}>
-      {/* Экран: сохранённые пароли */}
-      <View style={styles.libraryHeader}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => switchScreen('main')}>
-          <Text style={styles.backBtnText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Сохранённые пароли</Text>
-        {history.length > 0 ? (
-          <TouchableOpacity style={styles.clearBtn} onPress={() => setClearConfirm(true)}>
-            <Text style={styles.clearBtnText}>🗑</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.clearBtnPlaceholder} />
-        )}
-      </View>
-
-      <Text style={styles.section}>Паролей: {history.length}</Text>
-
-      {history.length === 0 ? (
-        <>
-          <Text style={styles.historyEmpty}>Сохранённых паролей пока нет</Text>
-          <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('main')}>
-            <Text style={styles.btnLibraryText}>На главную</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <ScrollView
-          style={styles.historyList}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        >
-          {history.map(item => (
-            <View
-              key={item.id}
-              style={[styles.historyItem, item.pinned && styles.historyItemPinned]}
-            >
-              <Text style={styles.historyText} numberOfLines={2}>
-                {item.pinned ? '📌 ' : ''}{item.text}
-              </Text>
-              {item.pinned && !!item.note && (
-                <TouchableOpacity style={styles.noteBtn} onPress={() => setNoteTarget(item)}>
-                  <Text style={styles.noteBtnText}>📝</Text>
-                </TouchableOpacity>
+            {/* Поле пароля с возможностью скрытия */}
+            <TouchableOpacity style={styles.passwordBox} onPress={copy} activeOpacity={0.8}>
+              {password ? (
+                <View style={styles.passwordContainer}>
+                  <Text style={styles.password} selectable={passwordVisible}>
+                    {passwordVisible ? password : '•'.repeat(password.length)}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setPasswordVisible(!passwordVisible)}
+                  >
+                    <Text style={styles.eyeButtonText}>{passwordVisible ? '👁' : '👁‍🗨'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={styles.passwordHint}>Нажмите «Сгенерировать»</Text>
               )}
-              <TouchableOpacity style={styles.moreBtn} onPress={() => setSelected(item)}>
-                <Text style={styles.moreBtnText}>⋮</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.copied, { opacity: copied ? 1 : 0 }]}>Пароль сохранен!</Text>
+
+            <Text style={styles.section}>Длина: {length} символов</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={4}
+              maximumValue={64}
+              step={1}
+              value={length}
+              onValueChange={setLength}
+              minimumTrackTintColor="#7C6CF0"
+              maximumTrackTintColor="#3a3a4a"
+              thumbTintColor="#7C6CF0"
+            />
+
+            <Text style={styles.section}>Сложность</Text>
+            <View style={styles.toggles}>
+              {Object.entries(SETS).map(([key, s]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.chip, enabled[key] && styles.chipActive]}
+                  onPress={() => toggle(key)}
+                >
+                  <Text
+                    style={[styles.chipText, enabled[key] && styles.chipTextActive]}
+                    allowFontScaling={false}
+                    numberOfLines={1}
+                  >
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.buttons}>
+              <TouchableOpacity style={styles.btnGenerate} onPress={generate}>
+                <Text style={styles.btnGenerateText}>Сгенерировать</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnCopy, !password && styles.btnCopyDisabled]}
+                onPress={copy}
+                disabled={!password}
+              >
+                <Text
+                  style={[styles.btnCopyText, !password && styles.btnCopyTextDisabled]}
+                  allowFontScaling={false}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  Копировать
+                </Text>
               </TouchableOpacity>
             </View>
-          ))}
-        </ScrollView>
-      )}
-        </View>
+
+            <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('saved')}>
+              <Text style={styles.btnLibraryText}>
+                Сохранённые пароли ({history.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.stagePart}>
+            <View style={styles.libraryHeader}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => switchScreen('main')}>
+                <Text style={styles.backBtnText}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Сохранённые пароли</Text>
+              {history.length > 0 ? (
+                <TouchableOpacity style={styles.clearBtn} onPress={() => setClearConfirm(true)}>
+                  <Text style={styles.clearBtnText}>🗑</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.clearBtnPlaceholder} />
+              )}
+            </View>
+
+            <Text style={styles.section}>Паролей: {history.length}</Text>
+
+            {history.length === 0 ? (
+              <>
+                <Text style={styles.historyEmpty}>Сохранённых паролей пока нет</Text>
+                <TouchableOpacity style={styles.btnLibrary} onPress={() => switchScreen('main')}>
+                  <Text style={styles.btnLibraryText}>На главную</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <ScrollView
+                style={styles.historyList}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+              >
+                {history.map(item => (
+                  <View
+                    key={item.id}
+                    style={[styles.historyItem, item.pinned && styles.historyItemPinned]}
+                  >
+                    <Text style={styles.historyText} numberOfLines={2}>
+                      {item.pinned ? '📌 ' : ''}{item.text}
+                    </Text>
+                    {item.pinned && !!item.note && (
+                      <TouchableOpacity style={styles.noteBtn} onPress={() => setNoteTarget(item)}>
+                        <Text style={styles.noteBtnText}>📝</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={styles.moreBtn} onPress={() => setSelected(item)}>
+                      <Text style={styles.moreBtnText}>⋮</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         </Animated.View>
       </View>
 
-      {/* Меню действий «⋯» */}
+      {/* Меню действий */}
       <Modal
         visible={selected !== null}
         transparent
@@ -402,7 +498,7 @@ export default function App() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Окно подтверждения удаления */}
+      {/* Подтверждение удаления */}
       <Modal
         visible={confirmItem !== null}
         transparent
@@ -435,7 +531,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* Окно подтверждения очистки всех паролей */}
+      {/* Подтверждение очистки всех */}
       <Modal
         visible={clearConfirm}
         transparent
@@ -466,7 +562,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* Окно просмотра заметки */}
+      {/* Просмотр заметки */}
       <Modal
         visible={noteTarget !== null}
         transparent
@@ -499,7 +595,7 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* Окно редактирования заметки */}
+      {/* Редактирование заметки */}
       <Modal
         visible={editTarget !== null}
         transparent
@@ -514,12 +610,14 @@ export default function App() {
                 <TextInput
                   style={styles.editNoteInput}
                   value={noteDraft}
-                  onChangeText={setNoteDraft}
+                  onChangeText={(text) => setNoteDraft(text.slice(0, MAX_NOTE_LENGTH))}
                   placeholder="Введите заметку..."
                   placeholderTextColor="#666"
                   multiline
                   textAlignVertical="top"
+                  maxLength={MAX_NOTE_LENGTH}
                 />
+                <Text style={styles.noteCounter}>{noteDraft.length}/{MAX_NOTE_LENGTH}</Text>
                 <View style={styles.confirmButtons}>
                   <TouchableOpacity
                     style={[styles.confirmBtn, styles.confirmBtnCancel]}
@@ -582,7 +680,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
   },
-  // Заглушка, видимая короткий миг, пока шрифт Russo One загружается
   titleWait: {
     color: '#666',
     fontSize: 14,
@@ -595,10 +692,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 24,
     paddingHorizontal: 20,
-    height: 150, // фиксированная высота: вмещает пароль до 64 символов (~3 строки), поле не «скачет»
+    height: 150,
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#2e2e3e',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   password: {
     color: '#fff',
@@ -606,12 +709,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     letterSpacing: 0.5,
+    flex: 1,
     flexWrap: 'wrap',
-    width: '100%',
-    overflowWrap: 'break-word',
-    wordBreak: 'break-word',
   },
-  // Подсказка в пустом поле генерации — на техно-шрифте, чтобы смотрелась как приглашение.
+  eyeButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  eyeButtonText: {
+    fontSize: 20,
+  },
   passwordHint: {
     color: '#555',
     fontSize: 15,
@@ -620,12 +727,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 1,
   },
-  hint: {
-    color: '#666',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  // Надпись «Пароль сохранен!» — Russo One (символ ✓ убран, обрезки не будет).
   copied: {
     color: '#4ade80',
     fontSize: 14,
@@ -651,7 +752,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
     marginBottom: 8,
   },
   chip: {
@@ -660,20 +761,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3a3a4a',
     borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 0,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   chipActive: {
     backgroundColor: '#7C6CF0',
     borderColor: '#7C6CF0',
   },
-  // Единый шрифт интерфейса: плитки наборов тоже на Russo One (все символы в шрифте есть,
-  // эмодзи из текста убраны — обрезки не будет).
   chipText: {
     color: '#999',
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: 'RussoOne_400Regular',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   chipTextActive: {
     color: '#fff',
@@ -689,16 +791,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#14b8a6',
     borderRadius: 18,
     paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 50,
     alignItems: 'center',
     elevation: 4,
+    width: '100%',
   },
   btnGenerateText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
+    includeFontPadding: false,
   },
   btnCopy: {
     backgroundColor: '#1a2a3a',
@@ -706,16 +810,17 @@ const styles = StyleSheet.create({
     borderColor: '#2a4a6a',
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 24,
+    paddingHorizontal: 50,
     alignItems: 'center',
+    width: '100%',
   },
-  // Кнопка «Копировать» — Russo One в общем стиле (текст без эмодзи, символы все есть).
   btnCopyText: {
     color: '#60a5fa',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
+    includeFontPadding: false,
   },
   btnCopyDisabled: {
     backgroundColor: '#171722',
@@ -730,9 +835,10 @@ const styles = StyleSheet.create({
     borderColor: '#7C6CF0',
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 24,
+    paddingHorizontal: 50,
     alignItems: 'center',
     marginTop: 12,
+    width: '100%',
   },
   btnLibraryText: {
     color: '#c4b5fd',
@@ -740,6 +846,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'RussoOne_400Regular',
     textTransform: 'uppercase',
+    includeFontPadding: false,
   },
   libraryHeader: {
     flexDirection: 'row',
@@ -908,7 +1015,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'RussoOne_400Regular',
   },
-  // Значок «есть заметка» — просто эмодзи, как 📌 рядом с паролем
   noteBtn: {
     paddingHorizontal: 4,
     paddingVertical: 6,
@@ -916,7 +1022,6 @@ const styles = StyleSheet.create({
   noteBtnText: {
     fontSize: 14,
   },
-  // Текст заметки в окне просмотра — светлый, на контрастном поле
   viewNoteText: {
     color: '#fff',
     fontSize: 15,
@@ -928,7 +1033,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
-  // Поле ввода заметки — светлый текст, достаточно места, отступ от кнопок
   editNoteInput: {
     color: '#fff',
     fontSize: 15,
@@ -938,7 +1042,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     minHeight: 100,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  noteCounter: {
+    color: '#999',
+    fontSize: 12,
+    textAlign: 'right',
+    marginBottom: 12,
   },
   confirmBtnGold: {
     backgroundColor: '#3a2f00',
