@@ -12,40 +12,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Expo
-        run: npx expo-doctor
-
-      - name: Build Android APK
-        run: npx expo export --platform android
+      - name: Build APK
+        run: eas build --platform android --profile preview --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download APK from EAS
+        run: |
+          eas build:list --platform android --limit 1 --json > build.json
+          BUILD_ID=$(jq -r '.[0].id' build.json)
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app.apk
-          path: dist/*.apk
+          name: PasswordGen.apk
+          path: ~/app.apk
           retention-days: 7
-
-      - name: Download APK
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: build.yml
-          name: app.apk
-          path: ./apk/
-
-      - name: Release APK
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: ./apk/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
